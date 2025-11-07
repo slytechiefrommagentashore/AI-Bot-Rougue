@@ -81,7 +81,7 @@ Built entirely in **HTML5 + JavaScript**, powered by the **Phaser 3** framework.
 -  **Difficulty Tiers** — Easy, Medium, Hard  
 -  **Leaderboard System** — global scores & chaos rankings  
 -  **Expanded Bot Dialogue** — more personality and humor  
-
+-  **Mobile Version** of the current game.
 ---
 
 ## Play Now
@@ -96,5 +96,5 @@ Built entirely in **HTML5 + JavaScript**, powered by the **Phaser 3** framework.
 
 * **Game Design & Code:** Vasireddy Satvika aka Slytechiefrommagentashore
 * **Framework:** [Phaser 3](https://phaser.io/phaser3)
-* **Graphics (Bot, Glitch):** All images were generated using the **Nano Gemini** image generation tool.
+* **Graphics (Bot, Glitch):** All images were generated using the **Nano Gemini** image generation tool[check here](https://gemini.google.com/share/b5d0d04767bc).
 * **Audio (Beep, Explosion):** All sounds were sourced from **Pixabay**.

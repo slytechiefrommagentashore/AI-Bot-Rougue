@@ -87,7 +87,7 @@ Built entirely in **HTML5 + JavaScript**, powered by the **Phaser 3** framework.
 ## Play Now
 
 * **Play the Game:** [Playable Live Link](https://ai-bot-rougue.vercel.app/)
-* **Watch the Demo Video:** [DEMO](https://github.com/slytechiefrommagentashore/AI-Bot-Rougue)
+* **Watch the Demo Video:** [DEMO](https://youtu.be/B3YHgksGWfQ)
 * **View the Code:** [GitHub Repo](https://github.com/slytechiefrommagentashore/AI-Bot-Rougue)
 
 ---

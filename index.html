@@ -32,9 +32,6 @@ class BotScene extends Phaser.Scene {
     this.load.image('glitch', 'assets/glitch.png');
     this.load.audio('beep', 'assets/beep.mp3');
     this.load.audio('boom', 'assets/explosion.mp3');
-    //this.load.audio('success', 'assets/sounds/success.mp3');
-   // this.load.audio('error', 'assets/sounds/error.mp3');
-   // this.load.audio('laugh', 'assets/sounds/laugh.mp3');
   }
 
   create() {
@@ -43,10 +40,11 @@ class BotScene extends Phaser.Scene {
     this.personality = "neutral";
     this.jokeCount = 0;
 
-    //reset
     this.commandCount = 0;
     this.lastCommand = null;
     this.repeatCount = 0;
+
+    this.hintVisible = false;
 
     // Background + bot sprite
     this.add.rectangle(400, 300, 800, 620, 0x0a0a0a, 1);
@@ -60,9 +58,6 @@ class BotScene extends Phaser.Scene {
     // Sound refs
     this.beep = this.sound.add('beep');
     this.boom = this.sound.add('boom');
-   // this.successSound = this.sound.add('success');
-   // this.errorSound = this.sound.add('error');
-   // this.laughSound = this.sound.add('laugh');
 
     // Glitch overlay
     this.glitch = this.add.image(400, 300, 'glitch').setAlpha(0);
@@ -103,7 +98,7 @@ const commandStats = {
 const actions = Object.keys(commandStats);
 actions.forEach((a, i) => {
   const pts = commandStats[a].points;
-  const label = `${a} (+${pts})`;
+const label = `[${i + 1}] ${a} (+${pts})`;
   const btn = this.add.text(
     20 + (i % 3) * 250, 
     500 + Math.floor(i / 3) * 40,
@@ -120,13 +115,35 @@ actions.forEach((a, i) => {
   btn.on('pointerover', () => btn.setFill("#ffffff"));
   btn.on('pointerout', () => btn.setFill("#00ff00"));
 });
+
+// keyboard controls for commands
+this.input.keyboard.on('keydown', (event) => {
+  if (!this.missionActive) return;
+
+  const keyMap = {
+    '1': 'Clean Desk',
+    '2': 'Organize Room',
+    '3': 'Fix Computer',
+    '4': 'Make Coffee',
+    '5': 'Save Project',
+    '6': 'Shutdown',
+    '7': 'Tell me a joke'
+  };
+
+  const cmd = keyMap[event.key];
+  if (cmd) {
+    this.beep.play();
+    this.handleCommand(cmd);
+  }
+});
+
     this.showIntro();
 
 // Load high score
 this.highScore = localStorage.getItem('bot_high_score') || 0;
 
-// 💡 Hint button under timer
-this.hintButton = this.add.text(780, 60, "💡 Hint", {
+// Hint button under timer
+this.hintButton = this.add.text(780, 60, "💡 Hint (H)", {
   font: "14px monospace",
   fill: "#00ff00",
   backgroundColor: "#001a00",
@@ -135,10 +152,9 @@ this.hintButton = this.add.text(780, 60, "💡 Hint", {
 .setOrigin(1, 0)
 .setInteractive();
 
-// 🧠 Hint tooltip (hidden initially)
 this.hintTooltip = this.add.text(
   400, 100,
-  "🧠 Hint:\nKeep Office Instability (Chaos) below 40%.\nThen issue the 'Shutdown' command — remember,\n'Shutdown' is a command, not the end of the game!\nMission ends only when the system confirms stability.",
+  "Hint:\nKeep Office Instability (Chaos) below 40%.\nThen issue the 'Shutdown' command — remember,\n'Shutdown' is a command, not the end of the game!\nMission ends only when the system confirms stability.",
   {
     font: "14px monospace",
     fill: "#00ff00",
@@ -168,10 +184,23 @@ this.hintButton.on('pointerout', () => {
     ease: 'Sine.easeOut'
   });
 });
+// Keyboard listener for 'H' key to toggle hint
+this.input.keyboard.on('keydown-H', () => {
+ // Only toggle if the game is active
+ if (this.missionActive) { 
+  this.hintVisible = !this.hintVisible;
+  this.sound.play('beep');
+  this.tweens.add({
+   targets: this.hintTooltip,
+   alpha: this.hintVisible ? 1 : 0, 
+   duration: 200,
+   ease: 'Sine.easeIn'
+  });
+ }
+});
 }
-
 showHowToPlay() {
-  if (this.howToPlayOverlay) return; // prevent duplicates
+  if (this.howToPlayOverlay) return; 
 
   // Dim background
   const overlay = this.add.rectangle(400, 310, 800, 620, 0x000000, 0.9)
@@ -186,7 +215,7 @@ showHowToPlay() {
     fill: "#00ff00",
   }).setOrigin(0.5).setDepth(202);
 
-const textLines = [
+  const textLines = [
     " **YOUR GOAL:** Successfully shut down the bot.",
     " **HOW TO WIN:**",
     "▶ 1. Issue at least 10 commands to unlock 'Shutdown'.",
@@ -197,7 +226,7 @@ const textLines = [
     "▶ Failure = Chaos increases.",
     " **PRO TIP:** Get a 1.5x score bonus for tasks", "completed while Chaos level is below 30%!",            
     " **IMPORTANT:** Your score is only saved to the",
-    "▶ High Score list if you win the mission!",
+    "high Score list if you win the mission!",
     "▶ Don't repeat the same command more than 3 times!",
     "▶ If Chaos hits 100%, you lose immediately."
   ];
@@ -210,7 +239,7 @@ const textLines = [
   });
 
   // Close button
-  const closeBtn = this.add.text(400, 520, "✖ CLOSE", {
+  const closeBtn = this.add.text(400, 520, "✖ CLOSE (Esc)", {
     font: "18px monospace",
     fill: "#00ff00",
     backgroundColor: "#003300",
@@ -219,23 +248,35 @@ const textLines = [
 
   closeBtn.on("pointerover", () => closeBtn.setFill("#ffffff"));
   closeBtn.on("pointerout", () => closeBtn.setFill("#00ff00"));
-  closeBtn.on("pointerdown", () => {
+
+  const closeAction = () => {
+    if (!this.howToPlayOverlay) return; 
+    this.input.keyboard.removeListener('keydown-ESC');
+    // Destroy all elements
     overlay.destroy();
     box.destroy();
     title.destroy();
     closeBtn.destroy();
+
     this.children.list
       .filter(obj => obj.depth === 202)
       .forEach(obj => obj.destroy());
+    
     this.howToPlayOverlay = null;
     this.sound.play("beep");
-  });
+  };
+
+  // Set up button click listener
+  closeBtn.on("pointerdown", closeAction);
+
+  // Adding ESC key listener
+  this.input.keyboard.on('keydown-ESC', closeAction);
 
   this.howToPlayOverlay = overlay; // reference guard
 }
 
 showIntro() {
-    // ✨ 1. Create one container to hold all intro elements
+    //container to hold all intro elements
     const introContainer = this.add.container(0, 0);
 
     const bg = this.add.rectangle(400, 300, 800, 600, 0x000000, 0.8);
@@ -243,7 +284,7 @@ showIntro() {
     const title = this.add.text(150, 160, "BOT GONE ROGUE — MISSION BRIEFING",
       { font: "20px monospace", fill: "#00ff00" });
 
-    // ✨ 2. Add the first few elements to the container
+    //Adding the first few elements to the container
     introContainer.add([bg, box, title]);
 
     const lines = [
@@ -259,7 +300,6 @@ showIntro() {
     let y = 200;
     lines.forEach(l => {
       const lineText = this.add.text(160, y, l, { font: "16px monospace", fill: "#00ff00" });
-      // ✨ ...and add it to the conta
       introContainer.add(lineText);
       y += 22;
     });
@@ -275,10 +315,7 @@ showIntro() {
         this.easyMode = true;
         this.startGame(introContainer);
       });
-
-
     introContainer.add([startBtn, easyBtn]);
-
     const howToBtn = this.add.text(340, 500, "📘 How to Play", {
       font: "16px monospace",
       fill: "#00ff00"
@@ -290,7 +327,28 @@ showIntro() {
     });
     introContainer.add(howToBtn);
 
-  }
+// Keyboard shortcuts on intro screen
+this.input.keyboard.on('keydown', (event) => {
+  if (this.missionActive) return; // prevent triggering during game
+
+  switch (event.key.toLowerCase()) {
+    case 'enter':
+      this.sound.play('beep');
+      this.easyMode = false;
+      this.startGame(introContainer);
+      break;
+    case 'e':
+      this.sound.play('beep');
+      this.easyMode = true;
+      this.startGame(introContainer);
+      break;
+    case 'h':
+      this.sound.play('beep');
+      this.showHowToPlay();
+      break;
+      }
+    });
+}
 
   startGame(introContainer) { 
     introContainer.destroy(); 
@@ -305,8 +363,6 @@ handleCommand(cmd) {
 
 if (cmd === "Tell me a joke") {
   this.jokeCount++;
-//  this.laughSound.play();
-
   // Determine mood-based response
   const neutralJokes = [
     "Bot: I told the cloud a secret… now it’s leaking.",
@@ -404,7 +460,7 @@ if (bad) {
   const add = Phaser.Math.Between(8, 18);
   this.chaos += add;
   this.glitchFlash();
- // this.errorSound.play();
+
   
   const failResponses = [
     `Bot: Misinterpreted "${cmd}" again... oops.`,
@@ -416,7 +472,6 @@ if (bad) {
   const reduce = Phaser.Math.Between(2, 6);
   this.chaos = Math.max(0, this.chaos - reduce);
   this.score += pts;
-  //this.successSound.play();
 
   const successResponses = [
     `Bot: "${cmd}" executed flawlessly.`,
@@ -434,8 +489,6 @@ if (bad) {
     this.endGame(true);
   }
 }
-
-
   botMove(){
     const x=Phaser.Math.Between(100,700), y=Phaser.Math.Between(150,400);
     this.tweens.add({ targets:this.bot, x, y, duration:300, ease:"Sine.easeInOut" });
@@ -443,8 +496,8 @@ if (bad) {
 
     glitchFlash(){
     this.glitch.setAlpha(0.8);
-    this.glitch.setTint(0xff00ff); // 🔮 magenta flicker
-    this.cameras.main.shake(100, 0.01); // 💥 tiny camera shake
+    this.glitch.setTint(0xff00ff); 
+    this.cameras.main.shake(100, 0.01); 
     this.tweens.add({
         targets: this.glitch,
         alpha: 0,
@@ -452,8 +505,6 @@ if (bad) {
         onComplete: () => this.glitch.clearTint()
     });
     }
-
-
   log(msg){
     const lines=this.logText.text.split("\n");
     if(lines.length>10)lines.shift(); lines.push(msg);
@@ -514,8 +565,12 @@ if (success) {
  this.log("> System Failure! Office in ruins.");
  this.boom.play();
 }
-// 🪩 Show overlay
   this.showGameOver(success);
+// Keyboard shortcut to restart after game over
+this.input.keyboard.once('keydown-R', () => {
+  this.sound.play('beep');
+  this.scene.restart();
+});
 }
 
 // GAME OVER OVERLAY
@@ -552,22 +607,27 @@ showGameOver(success) {
     { font: "20px monospace", fill: "#cccccc" }
   ).setOrigin(0.5).setDepth(101);
 
-  // Restart button
+  const restartAction = () => {
+   this.sound.play("beep");
+   this.scene.restart();
+  };
+
   const btn = this.add.text(
     this.cameras.main.centerX,
     this.cameras.main.centerY + 70,
-    "▶ RESTART MISSION",
+    "▶ RESTART MISSION (Enter)",
     { font: "22px monospace", fill: "#00ff00", backgroundColor: "#003300", padding: { x: 10, y: 5 } }
   )
     .setOrigin(0.5)
     .setDepth(101)
     .setInteractive()
-    .on("pointerdown", () => {
-      this.sound.play("beep");
-      this.scene.restart();
-    })
+    .on("pointerdown", restartAction) // Mouse click listener
     .on("pointerover", () => btn.setStyle({ fill: "#ffffff" }))
     .on("pointerout", () => btn.setStyle({ fill: "#00ff00" }));
+
+  // restart keyboard listener
+  this.input.keyboard.once('keydown-ENTER', restartAction);
+
   // Pulsing animation
   this.tweens.add({
     targets: [titleText],
@@ -577,7 +637,8 @@ showGameOver(success) {
     repeat: -1,
     ease: "Sine.easeInOut"
   });
-//highscore display
+
+  // highscore display
   const scoreDisplay = this.add.text(
     this.cameras.main.centerX,
     this.cameras.main.centerY + 40,
@@ -585,7 +646,6 @@ showGameOver(success) {
     { font: "18px monospace", fill: "#00ff00" }
   ).setOrigin(0.5).setDepth(101);
 }
-
   update() {
   if (!this.missionActive) return; 
 
@@ -603,9 +663,5 @@ showGameOver(success) {
 new Phaser.Game({ type:Phaser.AUTO, width:800, height:620, backgroundColor:"#111", scene:BotScene });
 </script>
 
-
 </body>
 </html>
-
-
-
